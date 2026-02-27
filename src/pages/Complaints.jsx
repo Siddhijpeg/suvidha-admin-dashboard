@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, X, AlertCircle, MessageSquareWarning, CheckCircle2, Clock4, ArrowUpCircle, ChevronDown, User, RefreshCw } from "lucide-react";
+import { Search, X, AlertCircle, MessageSquare, CheckCircle2, Clock4, ArrowUpCircle, ChevronDown, User, RefreshCw } from "lucide-react";
 import Card from "../components/ui/Card";
 import Modal from "../components/ui/Modal";
 import Loader from "../components/ui/Loader";
@@ -178,7 +178,7 @@ export default function Complaints() {
       {/* Summary */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[
-          [MessageSquareWarning,"Total",      counts.total,      "text-blue-600",   "bg-blue-50 dark:bg-blue-500/10"],
+          [MessageSquare,"Total",      counts.total,      "text-blue-600",   "bg-blue-50 dark:bg-blue-500/10"],
           [Clock4,              "Open",        counts.open,       "text-orange-500", "bg-orange-50 dark:bg-orange-500/10"],
           [ArrowUpCircle,       "In Progress", counts.inProgress, "text-yellow-600", "bg-yellow-50 dark:bg-yellow-500/10"],
           [AlertCircle,         "Escalated",   counts.escalated,  "text-red-600",    "bg-red-50 dark:bg-red-500/10"],

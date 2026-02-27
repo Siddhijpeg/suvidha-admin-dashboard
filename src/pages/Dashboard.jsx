@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   Monitor, MonitorOff, Users, CreditCard, TrendingUp,
-  MessageSquareWarning, XCircle, Activity, ArrowUp, ArrowDown,
+  MessageSquare, XCircle, Activity, ArrowUp, ArrowDown,
   RefreshCw, MapPin, Clock, Zap
 } from "lucide-react";
 
@@ -163,7 +163,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard icon={CreditCard} label="Transactions Today" value="1,284" sub="+201 in last hour" bgColor="bg-cyan-50 dark:bg-cyan-500/10" color="text-cyan-600 dark:text-cyan-400" trend={8} />
         <MetricCard icon={TrendingUp} label="Revenue Today" value="₹3.12L" sub="vs ₹2.89L yesterday" bgColor="bg-emerald-50 dark:bg-emerald-500/10" color="text-emerald-600 dark:text-emerald-400" trend={7} />
-        <MetricCard icon={MessageSquareWarning} label="Complaints Today" value="14" sub="9 open · 5 resolved" bgColor="bg-orange-50 dark:bg-orange-500/10" color="text-orange-600 dark:text-orange-400" trend={-5} />
+        <MetricCard icon={MessageSquare} label="Complaints Today" value="14" sub="9 open · 5 resolved" bgColor="bg-orange-50 dark:bg-orange-500/10" color="text-orange-600 dark:text-orange-400" trend={-5} />
         <MetricCard icon={XCircle} label="Failed Payments" value="23" sub="1.8% failure rate" bgColor="bg-rose-50 dark:bg-rose-500/10" color="text-rose-500 dark:text-rose-400" trend={-2} />
       </div>
 
