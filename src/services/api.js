@@ -1,0 +1,31 @@
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
+async function request(method, path, body) {
+  const token = localStorage.getItem("suvidha_token");
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+
+  if (res.status === 401) {
+    localStorage.removeItem("suvidha_token");
+    localStorage.removeItem("suvidha_user");
+    window.location.href = "/login";
+  }
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Request failed");
+  return data;
+}
+
+export const api = {
+  get:    (path)        => request("GET",    path),
+  post:   (path, body)  => request("POST",   path, body),
+  put:    (path, body)  => request("PUT",    path, body),
+  patch:  (path, body)  => request("PATCH",  path, body),
+  delete: (path)        => request("DELETE", path),
+};
