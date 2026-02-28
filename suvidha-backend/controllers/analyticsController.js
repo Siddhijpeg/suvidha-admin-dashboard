@@ -7,7 +7,7 @@ const getDateRange = (range) => {
   return new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 };
 
-const getTimestamp = (row) => row.createdAt || row.created_at;
+const getTimestamp = (row) => row.created_at;
 
 const groupByDate = (rows, init, update) => {
   const map = new Map();
@@ -28,9 +28,9 @@ exports.getOverview = async (req, res, next) => {
     const since = getDateRange(range).toISOString();
 
     const [txnRes, kioskRes, complaintRes] = await Promise.all([
-      supabase.from("transactions").select("amount,status,created_at,createdAt").gte("created_at", since),
+      supabase.from("transactions").select("amount,status,created_at").gte("created_at", since),
       supabase.from("kiosks").select("status"),
-      supabase.from("complaints").select("status,created_at,createdAt").gte("created_at", since),
+      supabase.from("complaints").select("status,created_at").gte("created_at", since),
     ]);
 
     if (txnRes.error) return next(toError(txnRes.error, 500));
@@ -96,7 +96,7 @@ exports.getRevenueChart = async (req, res, next) => {
 
     const { data, error } = await supabase
       .from("transactions")
-      .select("amount,status,created_at,createdAt")
+      .select("amount,status,created_at")
       .eq("status", "success")
       .gte("created_at", since);
     if (error) return next(toError(error, 500));
@@ -122,7 +122,7 @@ exports.getTxnChart = async (req, res, next) => {
 
     const { data, error } = await supabase
       .from("transactions")
-      .select("status,created_at,createdAt")
+      .select("status,created_at")
       .gte("created_at", since);
     if (error) return next(toError(error, 500));
 
@@ -148,7 +148,7 @@ exports.getDeptStats = async (req, res, next) => {
 
     const { data, error } = await supabase
       .from("transactions")
-      .select("deptName,amount,status,created_at,createdAt")
+      .select("deptName,amount,status,created_at")
       .gte("created_at", since);
     if (error) return next(toError(error, 500));
 
@@ -182,7 +182,7 @@ exports.getKioskStats = async (req, res, next) => {
 
     const { data, error } = await supabase
       .from("transactions")
-      .select("kioskId,amount,status,created_at,createdAt")
+      .select("kioskId,amount,status,created_at")
       .gte("created_at", since);
     if (error) return next(toError(error, 500));
 

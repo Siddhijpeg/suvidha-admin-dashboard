@@ -23,19 +23,19 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (email, password) => {
-    try {
-      const result = await authService.login(email, password);
-      if (result?.token) {
-        localStorage.setItem("suvidha_token", result.token);
-        localStorage.setItem("suvidha_user", JSON.stringify(result.user));
-        setUser(result.user);
-        return { success: true };
-      }
-      return { success: false, error: "Invalid credentials" };
-    } catch (err) {
-      return { success: false, error: err.message || "Login failed. Please try again." };
+  try {
+    const result = await authService.login(email, password);
+    if (result?.session?.access_token) {
+      localStorage.setItem("suvidha_token", result.session.access_token);
+      localStorage.setItem("suvidha_user", JSON.stringify(result.user.user_metadata));
+      setUser(result.user.user_metadata);
+      return { success: true };
     }
-  };
+    return { success: false, error: "Invalid credentials" };
+  } catch (err) {
+    return { success: false, error: err.message || "Login failed. Please try again." };
+  }
+};
 
   const logout = () => {
     localStorage.removeItem("suvidha_token");

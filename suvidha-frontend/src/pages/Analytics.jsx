@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Download, TrendingUp, TrendingDown, RefreshCw, BarChart2, PieChart } from "lucide-react";
 import Card from "../components/ui/Card";
 import Loader from "../components/ui/Loader";
@@ -176,14 +176,72 @@ function StatRow({ label, value, trend, up }) {
 // ── Main Page ──────────────────────────────────────────────────────────────────
 export default function Analytics() {
   const [range, setRange] = useState("7d");
+  const [loading, setLoading] = useState(true);
+  const [overview, setOverview] = useState(null);
+  const [chartData, setChartData] = useState({ labels: [], revenue: [], txns: [] });
+  const [deptStats, setDeptStats] = useState([]);
+  const [kioskStats, setKioskStats] = useState([]);
 
-  const chartData = genData(range);
-  const overview  = MOCK_OVERVIEW;
+  const fetchAnalytics = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [overviewRes, revenueRes, txnRes, deptRes, kioskRes] = await Promise.all([
+        analyticsService.getOverview(range),
+        analyticsService.getRevenueChart(range),
+        analyticsService.getTxnChart(range),
+        analyticsService.getDeptStats(range),
+        analyticsService.getKioskStats(range)
+      ]);
+
+      if (overviewRes?.overview) {
+        setOverview(overviewRes.overview);
+      }
+      
+      if (revenueRes?.data && txnRes?.data) {
+        const labels = revenueRes.data.map(d => new Date(d._id).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }));
+        setChartData({
+          labels,
+          revenue: revenueRes.data.map(d => d.revenue),
+          txns: txnRes.data.map(d => d.total)
+        });
+      }
+      
+      if (deptRes?.data) {
+        setDeptStats(deptRes.data);
+      }
+      
+      if (kioskRes?.data) {
+        setKioskStats(kioskRes.data);
+      }
+    } catch (error) {
+      console.error('Error fetching analytics:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [range]);
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, [fetchAnalytics]);
+
+  const handleRefresh = () => {
+    fetchAnalytics();
+  };
+
+  if (loading || !overview) {
+    return <Loader text="Loading analytics..." />;
+  }
 
   const langColors = ["#2563eb","#16a34a","#f97316","#8b5cf6","#06b6d4"];
-  const langData   = MOCK_LANG.map((l,i)=>({...l,color:langColors[i]}));
+  const langData = [
+    { lang: "Hindi", pct: 42 },
+    { lang: "English", pct: 28 },
+    { lang: "Tamil", pct: 11 },
+    { lang: "Telugu", pct: 9 },
+    { lang: "Marathi", pct: 10 }
+  ].map((l, i) => ({ ...l, color: langColors[i] }));
 
-  const maxPeak = Math.max(...MOCK_PEAK.map(p=>p.count));
+  const maxPeak = 256;
 
   return (
     <div className="space-y-6">
@@ -196,8 +254,8 @@ export default function Analytics() {
               {r==="7d"?"Last 7 days":r==="30d"?"Last 30 days":"Last 90 days"}
             </button>
           ))}
-          <button className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-white/5 transition-colors bg-white dark:bg-white/5">
-            <Download size={14}/> Export
+          <button onClick={handleRefresh} className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-white/5 transition-colors bg-white dark:bg-white/5">
+            <RefreshCw size={14}/> Refresh
           </button>
         </div>
       </div>
@@ -232,7 +290,13 @@ export default function Analytics() {
           </div>
           <span className="text-xs px-2.5 py-1 rounded-lg bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 font-semibold border border-green-100 dark:border-green-500/20">↑ 7% this period</span>
         </div>
-        <LineChart labels={chartData.labels} values={chartData.revenue} color="#2563eb" height={180}/>
+        {chartData.labels.length > 0 ? (
+          <LineChart labels={chartData.labels} values={chartData.revenue} color="#2563eb" height={180}/>
+        ) : (
+          <div className="h-44 flex items-center justify-center text-slate-400">
+            No revenue data available
+          </div>
+        )}
       </Card>
 
       {/* Transactions chart */}
@@ -243,7 +307,13 @@ export default function Analytics() {
             <p className="text-xs text-slate-400 mt-0.5">Daily transactions for the selected period</p>
           </div>
         </div>
-        <BarChart labels={chartData.labels} values={chartData.txns} color="#16a34a" height={140}/>
+        {chartData.labels.length > 0 ? (
+          <BarChart labels={chartData.labels} values={chartData.txns} color="#16a34a" height={140}/>
+        ) : (
+          <div className="h-36 flex items-center justify-center text-slate-400">
+            No transaction data available
+          </div>
+        )}
       </Card>
 
       {/* Department table + Peak hours */}
@@ -253,12 +323,14 @@ export default function Analytics() {
             <p className="font-bold text-slate-800 dark:text-white">Department Performance</p>
           </div>
           <div className="p-5 space-y-3">
-            {MOCK_DEPT.map(d=>(
+            {deptStats.length > 0 ? deptStats.map((d, i) => {
+              const colors = ["#f97316", "#3b82f6", "#ef4444", "#6366f1", "#10b981", "#8b5cf6", "#ec4899", "#14b8a6"];
+              return (
               <div key={d.name} className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full" style={{backgroundColor:d.color}}/>
-                    <p className="text-sm font-semibold text-slate-800 dark:text-white">{d.name}</p>
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[i % colors.length] }} />
+                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{d.name}</span>
                   </div>
                   <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
                     <span>{d.txns} txns</span>
@@ -267,10 +339,15 @@ export default function Analytics() {
                   </div>
                 </div>
                 <div className="w-full h-2 bg-slate-100 dark:bg-white/10 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full transition-all" style={{width:`${d.successRate}%`,backgroundColor:d.color}}/>
+                  <div className="h-full rounded-full transition-all" style={{width:`${d.successRate}%`,backgroundColor:colors[i % colors.length]}}/>
                 </div>
               </div>
-            ))}
+              );
+            }) : (
+              <div className="text-center py-8 text-slate-400">
+                No department data available
+              </div>
+            )}
           </div>
         </Card>
 
