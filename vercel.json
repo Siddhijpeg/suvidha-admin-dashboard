@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "name": "suvidha-admin",
+  "builds": [
+    {
+      "src": "suvidha-frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "https://suvidha-backend.onrender.com/api/$1"
+    }
+  ],
+  "env": {
+    "VITE_API_URL": "https://suvidha-backend.onrender.com/api"
+  },
+  "functions": {},
+  "installCommand": "cd suvidha-frontend && npm ci",
+  "buildCommand": "cd suvidha-frontend && npm run build",
+  "outputDirectory": "suvidha-frontend/dist",
+  "framework": "vite"
+}

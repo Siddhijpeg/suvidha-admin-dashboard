@@ -1,0 +1,63 @@
+services:
+  # Type of service
+  type: web
+  
+  # Name of your service
+  name: suvidha-backend
+  
+  # Environment variables
+  env:
+    # Node environment
+    NODE_ENV: production
+    
+    # Port
+    PORT: 5000
+    
+    # Supabase configuration (update with your values)
+    SUPABASE_URL: https://your-project.supabase.co
+    SUPABASE_SERVICE_ROLE_KEY: your_service_role_key
+    
+    # Frontend URL
+    CLIENT_URL: https://suvidha-admin.vercel.app
+    
+    # Razorpay (production)
+    RAZORPAY_KEY_ID: rzp_live_your_key_id
+    RAZORPAY_KEY_SECRET: your_secret_key
+    
+    # JWT
+    JWT_SECRET: your_secure_jwt_secret
+    JWT_EXPIRES_IN: 7d
+
+  # Build configuration
+  buildCommand: "cd suvidha-backend && npm ci && npm run build"
+  startCommand: "npm start"
+
+  # Health check
+  healthCheckPath: /health
+
+  # Auto-deploy configuration
+  autoDeploy: true
+  
+  # Plan (free tier to start)
+  plan: free
+
+  # Region
+  region: oregon
+
+  # Branch
+  branch: main
+
+  # Root directory
+  rootDir: suvidha-backend
+
+  # Node version
+  runtime: node
+
+  # Node version
+  nodeVersion: 18
+
+# Add-ons for database and monitoring
+databases:
+  - name: suvidha-db
+    plan: free
+    ipAllowList: []
