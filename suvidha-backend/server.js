@@ -1,4 +1,4 @@
-require("dotenv").config();
+require("dotenv").config({ path: __dirname + "/.env" });
 const express     = require("express");
 const cors        = require("cors");
 const helmet      = require("helmet");
@@ -62,7 +62,7 @@ app.use((req, res) => {
 app.use(errorHandler);
 
 // ── Start server ───────────────────────────────────────────────
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5002;
 app.listen(PORT, () => {
   console.log(`\n🚀 SUVIDHA Backend running on http://localhost:${PORT}`);
   console.log(`📡 Environment: ${process.env.NODE_ENV || "development"}`);
