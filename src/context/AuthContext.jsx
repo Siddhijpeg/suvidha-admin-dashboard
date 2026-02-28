@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
+import { authService } from "../services/authService";
 
 const AuthContext = createContext(null);
 
@@ -22,20 +23,18 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (email, password) => {
-    // Mock login — replace with real API call
-    const mockUsers = {
-      "superadmin@suvidha.gov.in": { role: "super_admin", name: "Super Admin", email: "superadmin@suvidha.gov.in" },
-      "dept@suvidha.gov.in": { role: "department_admin", name: "Dept Admin", email: "dept@suvidha.gov.in" },
-      "operator@suvidha.gov.in": { role: "operator", name: "Operator", email: "operator@suvidha.gov.in" },
-    };
-    if (mockUsers[email] && password === "Admin@123") {
-      const userData = mockUsers[email];
-      localStorage.setItem("suvidha_token", "mock_jwt_token_" + Date.now());
-      localStorage.setItem("suvidha_user", JSON.stringify(userData));
-      setUser(userData);
-      return { success: true };
+    try {
+      const result = await authService.login(email, password);
+      if (result?.token) {
+        localStorage.setItem("suvidha_token", result.token);
+        localStorage.setItem("suvidha_user", JSON.stringify(result.user));
+        setUser(result.user);
+        return { success: true };
+      }
+      return { success: false, error: "Invalid credentials" };
+    } catch (err) {
+      return { success: false, error: err.message || "Login failed. Please try again." };
     }
-    return { success: false, error: "Invalid credentials" };
   };
 
   const logout = () => {
