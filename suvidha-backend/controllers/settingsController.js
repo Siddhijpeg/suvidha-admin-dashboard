@@ -1,47 +1,122 @@
-const { Settings, Blacklist, CMS, AuditLog } = require("../models/Settings");
+const supabase = require("../config/supabase");
 const audit = require("../utils/audit");
+const { mapRecord, mapRecords } = require("../utils/records");
+
+const toError = (error, statusCode = 500) => ({ statusCode, message: error.message || "Request failed" });
+
+const formatAuditTime = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${date.toISOString().slice(0, 10)} ${date.toISOString().slice(11, 16)}`;
+};
+
+const mapAuditLog = (log) => ({
+  ...mapRecord(log),
+  time: formatAuditTime(log.created_at || log.createdAt),
+});
+
+const mapBlacklist = (entry) => ({
+  ...mapRecord(entry),
+  addedAt: entry.addedAt || entry.createdAt || entry.created_at,
+});
 
 // ── Get settings (creates default if none exist) ───────────────
 exports.get = async (req, res, next) => {
   try {
-    let settings = await Settings.findOne();
-    if (!settings) settings = await Settings.create({});
-    res.json({ success: true, settings });
+    const { data, error } = await supabase.from("settings").select("*").limit(1).single();
+    if (error && error.code !== "PGRST116") return next(toError(error, 500));
+
+    if (data) {
+      return res.json({ success: true, settings: mapRecord(data) });
+    }
+
+    const { data: created, error: createError } = await supabase.from("settings").insert({}).select("*").single();
+    if (createError) return next(toError(createError, 500));
+
+    res.json({ success: true, settings: mapRecord(created) });
   } catch (err) { next(err); }
 };
 
 // ── Update settings ────────────────────────────────────────────
 exports.update = async (req, res, next) => {
   try {
-    let settings = await Settings.findOne();
-    if (!settings) settings = new Settings();
-    Object.assign(settings, req.body);
-    await settings.save();
-    await audit("Config changed", req.user, req, `Settings updated`);
-    res.json({ success: true, settings });
+    const { data, error } = await supabase.from("settings").select("*").limit(1).single();
+    if (error && error.code !== "PGRST116") return next(toError(error, 500));
+
+    if (data) {
+      const { data: updated, error: updateError } = await supabase
+        .from("settings")
+        .update(req.body)
+        .eq("id", data.id)
+        .select("*")
+        .single();
+      if (updateError) return next(toError(updateError, 400));
+
+      await audit("Config changed", req.user, req, "Settings updated");
+      return res.json({ success: true, settings: mapRecord(updated) });
+    }
+
+    const { data: created, error: createError } = await supabase
+      .from("settings")
+      .insert(req.body)
+      .select("*")
+      .single();
+    if (createError) return next(toError(createError, 400));
+
+    await audit("Config changed", req.user, req, "Settings updated");
+    res.json({ success: true, settings: mapRecord(created) });
   } catch (err) { next(err); }
 };
 
 // ── Payment settings ───────────────────────────────────────────
 exports.getPayment = async (req, res, next) => {
   try {
-    const settings = await Settings.findOne().select("paymentMode txnFee razorpayKeyId enabledMethods");
-    res.json({ success: true, settings });
+    const { data, error } = await supabase
+      .from("settings")
+      .select("paymentMode,txnFee,razorpayKeyId,enabledMethods")
+      .limit(1)
+      .single();
+    if (error && error.code !== "PGRST116") return next(toError(error, 500));
+
+    res.json({ success: true, settings: mapRecord(data || {}) });
   } catch (err) { next(err); }
 };
 
 exports.updatePayment = async (req, res, next) => {
   try {
     const { paymentMode, txnFee, razorpayKeyId, enabledMethods } = req.body;
-    let settings = await Settings.findOne();
-    if (!settings) settings = new Settings();
-    if (paymentMode !== undefined)   settings.paymentMode    = paymentMode;
-    if (txnFee !== undefined)        settings.txnFee         = txnFee;
-    if (razorpayKeyId !== undefined) settings.razorpayKeyId  = razorpayKeyId;
-    if (enabledMethods !== undefined)settings.enabledMethods = enabledMethods;
-    await settings.save();
-    await audit("Payment config updated", req.user, req, `Mode: ${settings.paymentMode}`);
-    res.json({ success: true, settings });
+    const { data, error } = await supabase.from("settings").select("*").limit(1).single();
+    if (error && error.code !== "PGRST116") return next(toError(error, 500));
+
+    const updates = {};
+    if (paymentMode !== undefined) updates.paymentMode = paymentMode;
+    if (txnFee !== undefined) updates.txnFee = txnFee;
+    if (razorpayKeyId !== undefined) updates.razorpayKeyId = razorpayKeyId;
+    if (enabledMethods !== undefined) updates.enabledMethods = enabledMethods;
+
+    if (data) {
+      const { data: updated, error: updateError } = await supabase
+        .from("settings")
+        .update(updates)
+        .eq("id", data.id)
+        .select("*")
+        .single();
+      if (updateError) return next(toError(updateError, 400));
+
+      await audit("Payment config updated", req.user, req, `Mode: ${updated.paymentMode}`);
+      return res.json({ success: true, settings: mapRecord(updated) });
+    }
+
+    const { data: created, error: createError } = await supabase
+      .from("settings")
+      .insert(updates)
+      .select("*")
+      .single();
+    if (createError) return next(toError(createError, 400));
+
+    await audit("Payment config updated", req.user, req, `Mode: ${created.paymentMode}`);
+    res.json({ success: true, settings: mapRecord(created) });
   } catch (err) { next(err); }
 };
 
@@ -49,20 +124,28 @@ exports.updatePayment = async (req, res, next) => {
 exports.getAuditLogs = async (req, res, next) => {
   try {
     const { page = 1, limit = 50, action, user } = req.query;
-    const filter = {};
-    if (action) filter.action = new RegExp(action, "i");
-    if (user)   filter.user   = new RegExp(user,   "i");
-    const logs = await AuditLog.find(filter).sort({ createdAt: -1 }).skip((page-1)*limit).limit(Number(limit));
-    const total = await AuditLog.countDocuments(filter);
-    res.json({ success: true, total, logs });
+
+    let query = supabase.from("audit_logs").select("*", { count: "exact" });
+    if (action) query = query.ilike("action", `%${action}%`);
+    if (user) query = query.ilike("user", `%${user}%`);
+
+    const from = (Number(page) - 1) * Number(limit);
+    const to = from + Number(limit) - 1;
+
+    const { data, error, count } = await query.order("created_at", { ascending: false }).range(from, to);
+    if (error) return next(toError(error, 500));
+
+    res.json({ success: true, total: count || 0, logs: data.map(mapAuditLog) });
   } catch (err) { next(err); }
 };
 
 // ── Blacklist ──────────────────────────────────────────────────
 exports.getBlacklist = async (req, res, next) => {
   try {
-    const list = await Blacklist.find().sort({ createdAt: -1 });
-    res.json({ success: true, blacklist: list });
+    const { data, error } = await supabase.from("blacklist").select("*").order("created_at", { ascending: false });
+    if (error) return next(toError(error, 500));
+
+    res.json({ success: true, blacklist: data.map(mapBlacklist) });
   } catch (err) { next(err); }
 };
 
@@ -70,17 +153,32 @@ exports.addBlacklist = async (req, res, next) => {
   try {
     const { phone, reason } = req.body;
     if (!phone) return res.status(400).json({ message: "Phone number is required." });
-    const entry = await Blacklist.create({ phone, reason, addedBy: req.user.email });
+
+    const { data, error } = await supabase
+      .from("blacklist")
+      .insert({ phone, reason, addedBy: req.user.email })
+      .select("*")
+      .single();
+    if (error) return next(toError(error, 400));
+
     await audit("Phone blacklisted", req.user, req, `${phone}: ${reason}`);
-    res.status(201).json({ success: true, entry });
+    res.status(201).json({ success: true, entry: mapBlacklist(data) });
   } catch (err) { next(err); }
 };
 
 exports.removeBlacklist = async (req, res, next) => {
   try {
-    const entry = await Blacklist.findByIdAndDelete(req.params.id);
-    if (!entry) return res.status(404).json({ message: "Entry not found." });
-    await audit("Blacklist removed", req.user, req, entry.phone);
+    const { data, error } = await supabase
+      .from("blacklist")
+      .delete()
+      .eq("id", req.params.id)
+      .select("*")
+      .single();
+
+    if (error && error.code === "PGRST116") return res.status(404).json({ message: "Entry not found." });
+    if (error) return next(toError(error, 400));
+
+    await audit("Blacklist removed", req.user, req, data.phone);
     res.json({ success: true, message: "Removed from blacklist." });
   } catch (err) { next(err); }
 };
@@ -88,28 +186,47 @@ exports.removeBlacklist = async (req, res, next) => {
 // ── CMS ────────────────────────────────────────────────────────
 exports.getCMS = async (req, res, next) => {
   try {
-    const items = await CMS.find().sort({ createdAt: -1 });
-    res.json({ success: true, items });
+    const { data, error } = await supabase.from("cms").select("*").order("created_at", { ascending: false });
+    if (error) return next(toError(error, 500));
+
+    res.json({ success: true, items: mapRecords(data) });
   } catch (err) { next(err); }
 };
 
 exports.updateCMS = async (req, res, next) => {
   try {
-    const { _id, ...data } = req.body;
+    const { _id, ...payload } = req.body;
     let item;
+
     if (_id) {
-      item = await CMS.findByIdAndUpdate(_id, data, { new: true });
+      const { data, error } = await supabase
+        .from("cms")
+        .update(payload)
+        .eq("id", _id)
+        .select("*")
+        .single();
+      if (error) return next(toError(error, 400));
+      item = data;
     } else {
-      item = await CMS.create(data);
+      const { data, error } = await supabase
+        .from("cms")
+        .insert(payload)
+        .select("*")
+        .single();
+      if (error) return next(toError(error, 400));
+      item = data;
     }
+
     await audit("CMS updated", req.user, req, item.title);
-    res.json({ success: true, item });
+    res.json({ success: true, item: mapRecord(item) });
   } catch (err) { next(err); }
 };
 
 exports.deleteCMS = async (req, res, next) => {
   try {
-    await CMS.findByIdAndDelete(req.params.id);
+    const { error } = await supabase.from("cms").delete().eq("id", req.params.id);
+    if (error) return next(toError(error, 400));
+
     res.json({ success: true, message: "Deleted." });
   } catch (err) { next(err); }
 };

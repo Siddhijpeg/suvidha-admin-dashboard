@@ -1,32 +1,41 @@
-const jwt  = require("jsonwebtoken");
-const User = require("../models/User");
+const supabase = require("../config/supabase");
 
-// ── Verify JWT ─────────────────────────────────────────────────
+// ── Protect Route (Verify Supabase Token) ──────────────────────
 exports.protect = async (req, res, next) => {
   try {
-    const header = req.headers.authorization;
-    if (!header || !header.startsWith("Bearer ")) {
-      return res.status(401).json({ message: "Not authorized. No token provided." });
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ message: "Not authorized" });
     }
-    const token = header.split(" ")[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id).select("-password");
-    if (!user || !user.isActive) {
-      return res.status(401).json({ message: "User not found or deactivated." });
+
+    const token = authHeader.split(" ")[1];
+
+    const { data, error } = await supabase.auth.getUser(token);
+
+    if (error || !data.user) {
+      return res.status(401).json({ message: "Invalid or expired token" });
     }
-    req.user = user;
+
+    req.user = data.user;
     next();
+
   } catch (err) {
-    return res.status(401).json({ message: "Invalid or expired token." });
+    next(err);
   }
 };
 
-// ── Role Guard ─────────────────────────────────────────────────
-exports.authorize = (...roles) => (req, res, next) => {
-  if (!roles.includes(req.user.role)) {
-    return res.status(403).json({
-      message: `Access denied. Required role: ${roles.join(" or ")}`,
-    });
-  }
-  next();
+// ── Role Guard (Using Supabase user_metadata) ─────────────────
+exports.authorize = (...roles) => {
+  return (req, res, next) => {
+    const userRole = req.user?.user_metadata?.role;
+
+    if (!userRole || !roles.includes(userRole)) {
+      return res.status(403).json({
+        message: `Access denied. Required role: ${roles.join(" or ")}`,
+      });
+    }
+
+    next();
+  };
 };

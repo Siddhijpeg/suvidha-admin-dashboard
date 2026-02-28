@@ -1,13 +1,12 @@
 # SUVIDHA Backend API
 
-Node.js + Express + MongoDB REST API for the SUVIDHA Admin Dashboard.
+Node.js + Express + Supabase REST API for the SUVIDHA Admin Dashboard.
 
 ## Setup
 
 ```bash
 npm install
 cp .env.example .env   # fill in your values
-npm run seed           # seed initial data into MongoDB
 npm run dev            # start dev server with nodemon
 ```
 
@@ -16,9 +15,8 @@ npm run dev            # start dev server with nodemon
 | Variable | Description |
 |----------|-------------|
 | `PORT` | Server port (default: 5000) |
-| `MONGO_URI` | MongoDB Atlas connection string |
-| `JWT_SECRET` | Secret key for JWT signing |
-| `JWT_EXPIRES_IN` | Token expiry (e.g. 7d) |
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
 | `CLIENT_URL` | Frontend URL for CORS |
 
 ## API Endpoints
@@ -47,19 +45,16 @@ npm run dev            # start dev server with nodemon
 
 ```
 suvidha-backend/
-├── config/         # DB connection
+├── config/         # Supabase client
 ├── controllers/    # Route logic
 ├── middleware/     # Auth, error handler
-├── models/         # Mongoose schemas
 ├── routes/         # Express routers
-├── utils/          # Helpers (audit, seed, token)
+├── utils/          # Helpers (audit, token)
 └── server.js       # Entry point
 ```
 
-## Setting Up MongoDB Atlas (Free)
+## Supabase Setup
 
-1. Go to [mongodb.com/cloud/atlas](https://www.mongodb.com/cloud/atlas)
-2. Create a free account → Create a free M0 cluster
-3. Click **Connect** → **Drivers** → copy the connection string
-4. Replace `<username>` and `<password>` in your `.env` file
-5. In **Network Access**, add `0.0.0.0/0` to allow all IPs (for dev)
+1. Create a project at [supabase.com](https://supabase.com)
+2. Copy your `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`
+3. Paste them into `.env`
