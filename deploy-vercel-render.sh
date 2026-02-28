@@ -114,17 +114,30 @@ deploy_frontend_vercel() {
     print_status "Installing frontend dependencies..."
     npm ci --production
     
-    # Build for production
-    print_status "Building frontend..."
-    if [ "$ENVIRONMENT" = "production" ]; then
-        npm run build
-    else
-        npm run build
+    # Run tests if available
+    if [ -f "package.json" ] && grep -q "test" package.json; then
+        print_status "Running frontend tests..."
+        npm test
     fi
     
-    # Deploy to Vercel
-    print_status "Deploying to Vercel..."
-    vercel --prod --confirm
+    # Build for production
+    print_status "Building frontend for $ENVIRONMENT..."
+    npm run build
+    
+    # Check if build was successful
+    if [ ! -d "dist" ]; then
+        print_error "Build failed - dist directory not found"
+        exit 1
+    fi
+    
+    # Deploy based on environment
+    if [ "$ENVIRONMENT" = "production" ]; then
+        print_status "Deploying to production..."
+        vercel --prod --confirm
+    else
+        print_status "Deploying to staging..."
+        vercel --confirm
+    fi
     
     cd ..
 }

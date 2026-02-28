@@ -5,9 +5,7 @@
     {
       "src": "suvidha-frontend/package.json",
       "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
+      "config": "vite.config.prod.js"
     }
   ],
   "routes": [
